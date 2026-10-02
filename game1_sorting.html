@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Letter Lab: Whisper or Voice?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Reem+Kufi:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#171433; --bg2:#231c4d;
+    --card:#2c2460;
+    --gold:#f3b64b; --gold-dk:#c98a1f;
+    --hams:#f0617a; --hams-dk:#b63753;
+    --jahr:#2fbf9f; --jahr-dk:#14806a;
+    --ink:#fff6e8; --ink-dim:#c9c2e8;
+    --danger:#ff5d5d;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; min-height:100%;
+    font-family:'Baloo 2',sans-serif;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(243,182,75,.12), transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(47,191,159,.14), transparent 45%),
+      linear-gradient(180deg,var(--bg1),var(--bg2));
+    color:var(--ink);
+    padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0) 0;
+    overflow-x:hidden;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:22px 18px 40px;}
+  .stars{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;}
+  header{position:relative;z-index:1;text-align:center;margin-bottom:10px;}
+  h1{font-size:clamp(24px,5vw,34px);font-weight:800;margin:4px 0 2px;letter-spacing:.3px;}
+  .sub{color:var(--ink-dim);font-size:15px;margin:0 0 14px;}
+  .hud{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;position:relative;z-index:1;}
+  .pill{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:8px 16px;font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px;}
+  .pill.score{color:var(--gold);}
+  .pill.mistakes{color:var(--danger);}
+  .progressBar{height:10px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;max-width:420px;margin:0 auto 18px;position:relative;z-index:1;}
+  .progressBar>div{height:100%;background:linear-gradient(90deg,var(--jahr),var(--gold));width:0%;transition:width .35s ease;}
+
+  #grid{position:relative;z-index:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:10px;max-width:760px;margin:0 auto 26px;}
+  .letter{
+    aspect-ratio:1/1; display:flex;align-items:center;justify-content:center;
+    font-family:'Reem Kufi',sans-serif; font-size:28px;
+    background:var(--card); border:2px solid rgba(255,255,255,.1);
+    border-radius:14px; cursor:pointer; user-select:none;
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease, opacity .25s ease;
+  }
+  .letter:hover{transform:translateY(-3px);}
+  .letter.selected{border-color:var(--gold); box-shadow:0 0 0 3px rgba(243,182,75,.35); transform:scale(1.08);}
+  .letter.gone{opacity:0; transform:scale(.3); pointer-events:none;}
+  .letter.wrong{animation:shake .4s ease;}
+  @keyframes shake{
+    10%,90%{transform:translateX(-4px);} 20%,80%{transform:translateX(5px);}
+    30%,50%,70%{transform:translateX(-8px);} 40%,60%{transform:translateX(8px);}
+  }
+
+  .bins{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:720px;margin:0 auto;}
+  .bin{
+    border-radius:22px; padding:18px 12px 22px; text-align:center; cursor:pointer;
+    border:2px solid transparent; transition:transform .15s ease, box-shadow .15s ease;
+    min-height:130px; display:flex; flex-direction:column; justify-content:center; gap:4px;
+  }
+  .bin:active{transform:scale(.97);}
+  .bin.hams{background:linear-gradient(160deg,rgba(240,97,122,.22),rgba(240,97,122,.06)); box-shadow:inset 0 0 0 1px rgba(240,97,122,.4);}
+  .bin.jahr{background:linear-gradient(160deg,rgba(47,191,159,.22),rgba(47,191,159,.06)); box-shadow:inset 0 0 0 1px rgba(47,191,159,.4);}
+  .bin .icon{font-size:36px;}
+  .bin .name{font-weight:800; font-size:20px;}
+  .bin.hams .name{color:var(--hams);}
+  .bin.jahr .name{color:var(--jahr);}
+  .bin .tag{font-size:12px; color:var(--ink-dim);}
+  .bin.flash-ok{animation:pulseOk .5s ease;}
+  @keyframes pulseOk{0%{box-shadow:0 0 0 0 rgba(255,255,255,.5);}100%{box-shadow:0 0 0 18px rgba(255,255,255,0);}}
+
+  .overlay{position:fixed;inset:0;background:rgba(10,8,30,.82);display:flex;align-items:center;justify-content:center;z-index:5;padding:20px;}
+  .modal{background:var(--card);border-radius:24px;padding:28px 24px;max-width:420px;text-align:center;border:1px solid rgba(255,255,255,.1);}
+  .modal h2{margin:4px 0 10px;font-size:24px;}
+  .modal p{color:var(--ink-dim);font-size:15px;line-height:1.5;margin:0 0 10px;}
+  .legend{display:flex; justify-content:center; gap:14px; margin:14px 0;}
+  .legend span{font-size:13px; font-weight:700; display:flex; align-items:center; gap:6px;}
+  .dot{width:12px;height:12px;border-radius:50%;display:inline-block;}
+  .dot.hams{background:var(--hams);} .dot.jahr{background:var(--jahr);}
+  button.cta{
+    background:linear-gradient(135deg,var(--gold),var(--gold-dk)); color:#2a1900; border:none;
+    font-family:'Baloo 2',sans-serif; font-weight:800; font-size:17px; padding:13px 30px;
+    border-radius:999px; cursor:pointer; margin-top:8px; box-shadow:0 6px 0 var(--gold-dk);
+  }
+  button.cta:active{transform:translateY(4px); box-shadow:0 2px 0 var(--gold-dk);}
+  .stat{font-size:40px;font-weight:800;color:var(--gold);margin:6px 0;}
+  .hidden{display:none !important;}
+  footer{text-align:center;color:var(--ink-dim);font-size:12px;margin-top:20px;position:relative;z-index:1;}
+</style>
+</head>
+<body>
+
+<canvas class="stars" id="starsCanvas"></canvas>
+
+<div class="wrap">
+  <header>
+    <h1>🪶 Whisper or Voice? 🔊</h1>
+    <p class="sub">Sort every Arabic letter into <b style="color:var(--hams)">Hams</b> (breathy, no vibration) or <b style="color:var(--jahr)">Jahr</b> (vocal cords vibrate).</p>
+  </header>
+
+  <div class="hud">
+    <div class="pill score">⭐ <span id="scoreVal">0</span> sorted</div>
+    <div class="pill mistakes">✖ <span id="missVal">0</span> mistakes</div>
+    <div class="pill">🔤 <span id="leftVal">29</span> left</div>
+  </div>
+  <div class="progressBar"><div id="progFill"></div></div>
+
+  <div id="grid"></div>
+
+  <div class="bins">
+    <div class="bin hams" id="binHams" tabindex="0">
+      <div class="icon">🪶</div>
+      <div class="name">Hams</div>
+      <div class="tag">quiet breath · no vibration</div>
+    </div>
+    <div class="bin jahr" id="binJahr" tabindex="0">
+      <div class="icon">🔊</div>
+      <div class="name">Jahr</div>
+      <div class="tag">strong voice · vibrates</div>
+    </div>
+  </div>
+
+  <footer>Tap a letter, then tap the bin where it belongs. Mnemonic for Hams: سَكَتْ فَحَثَّهُ شَخْصٌ</footer>
+</div>
+
+<div class="overlay" id="introOverlay">
+  <div class="modal">
+    <div style="font-size:46px;">🪶🔊</div>
+    <h2>Letter Lab</h2>
+    <p>Hams = the vocal cords stay apart, so air escapes with no vibration — a weak, breathy sound.<br><br>
+       Jahr = the vocal cords close and vibrate — a strong, clear sound.</p>
+    <div class="legend">
+      <span><i class="dot hams"></i>10 Hams letters</span>
+      <span><i class="dot jahr"></i>19 Jahr letters</span>
+    </div>
+    <button class="cta" id="startBtn">Start Sorting →</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="endOverlay">
+  <div class="modal">
+    <div style="font-size:46px;" id="endEmoji">🏆</div>
+    <h2 id="endTitle">All sorted!</h2>
+    <div class="stat"><span id="finalScore">29</span>/29</div>
+    <p id="endMsg">Great ears! You matched every letter to its sound.</p>
+    <button class="cta" id="restartBtn">Play Again</button>
+  </div>
+</div>
+
+<script>
+const HAMS = ["ف","ح","ث","ه","ش","خ","ص","س","ك","ت"];
+const JAHR = ["ء","ب","ج","د","ذ","ر","ز","ض","ط","ظ","ع","غ","ق","ل","م","ن","و","ي","ا"];
+const TOTAL = HAMS.length + JAHR.length;
+
+let letters = [];
+HAMS.forEach(l=>letters.push({ch:l,cat:'hams'}));
+JAHR.forEach(l=>letters.push({ch:l,cat:'jahr'}));
+// shuffle
+for(let i=letters.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[letters[i],letters[j]]=[letters[j],letters[i]];}
+
+let score=0, mistakes=0, remaining=TOTAL, selected=null;
+
+const grid = document.getElementById('grid');
+letters.forEach((item,idx)=>{
+  const el = document.createElement('div');
+  el.className='letter';
+  el.textContent=item.ch;
+  el.dataset.idx=idx;
+  el.addEventListener('click',()=>selectLetter(el,item));
+  grid.appendChild(el);
+});
+
+function selectLetter(el,item){
+  if(el.classList.contains('gone')) return;
+  document.querySelectorAll('.letter.selected').forEach(n=>n.classList.remove('selected'));
+  el.classList.add('selected');
+  selected = {el,item};
+}
+
+function updateHud(){
+  document.getElementById('scoreVal').textContent = score;
+  document.getElementById('missVal').textContent = mistakes;
+  document.getElementById('leftVal').textContent = remaining;
+  document.getElementById('progFill').style.width = (score/TOTAL*100)+'%';
+}
+
+function tryBin(cat, binEl){
+  if(!selected) { pulse(binEl,false); return; }
+  const {el,item} = selected;
+  if(item.cat === cat){
+    el.classList.add('gone');
+    score++; remaining--;
+    pulse(binEl,true);
+    selected=null;
+    updateHud();
+    if(remaining===0) setTimeout(showEnd, 500);
+  } else {
+    el.classList.add('wrong');
+    mistakes++;
+    setTimeout(()=>el.classList.remove('wrong'),400);
+    pulse(binEl,false);
+    updateHud();
+  }
+}
+
+function pulse(binEl, ok){
+  binEl.classList.remove('flash-ok');
+  void binEl.offsetWidth;
+  if(ok) binEl.classList.add('flash-ok');
+}
+
+document.getElementById('binHams').addEventListener('click',(e)=>tryBin('hams', e.currentTarget));
+document.getElementById('binJahr').addEventListener('click',(e)=>tryBin('jahr', e.currentTarget));
+
+function showEnd(){
+  document.getElementById('endOverlay').classList.remove('hidden');
+  document.getElementById('finalScore').textContent = score;
+  const acc = Math.round((score/(score+mistakes))*100) || 100;
+  let title='All sorted!', emoji='🏆', msg='';
+  if(acc===100){title='Perfect ears!'; emoji='🌟'; msg='You matched every letter with zero mistakes!';}
+  else if(acc>=80){emoji='🎉'; msg=`Nicely done — ${acc}% accuracy.`;}
+  else {emoji='💪'; msg=`You finished with ${acc}% accuracy. Try again for a better score!`;}
+  document.getElementById('endTitle').textContent=title;
+  document.getElementById('endEmoji').textContent=emoji;
+  document.getElementById('endMsg').textContent=msg;
+}
+
+document.getElementById('startBtn').addEventListener('click',()=>{
+  document.getElementById('introOverlay').classList.add('hidden');
+});
+document.getElementById('restartBtn').addEventListener('click',()=>location.reload());
+
+updateHud();
+
+// gentle starfield background
+(function(){
+  const c = document.getElementById('starsCanvas');
+  const ctx = c.getContext('2d');
+  function resize(){c.width=innerWidth;c.height=innerHeight;}
+  resize(); addEventListener('resize',resize);
+  const stars = Array.from({length:80},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*1.4+.3,s:Math.random()*.02+.005,o:Math.random()*Math.PI*2}));
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    ctx.fillStyle='#fff';
+    stars.forEach(st=>{
+      st.o+=st.s;
+      ctx.globalAlpha = .3+Math.abs(Math.sin(st.o))*.5;
+      ctx.beginPath(); ctx.arc(st.x,st.y,st.r,0,7); ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+</body>
+</html>
